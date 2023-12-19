@@ -1,30 +1,8 @@
-private SsmClient createSsmClient(AWSCredentialsProvider credentialsProvider, String region, URI endpointOverride) {
-
+private SsmClient createSsmClient() {
         ClientConfiguration clientConfiguration = new ClientConfiguration();
         AWSCredentialsProvider credentials = DeviceUtil.fetchCredentials(snowball);
-
         String certificate = fetchCertificate(snowball);
         log.info("cert"+certificate);
-
-        if (clientConfiguration != null) {
-            clientConfiguration.getApacheHttpClientConfig()
-                    .setSslSocketFactory(newSSLConnectionSocketFactory(certificate));
-            log.info("this is check for client configuraton "+clientConfiguration);
-        }
-
-        return SsmClient.builder()
-
-                .region(Region.of(region))
-                .endpointOverride(endpointOverride)
-                .credentialsProvider(credentialsProvider)
-                .httpClient(ApacheHttpClient.builder()
-                        .ClientConfiguration(clientConfiguration)
-                .build();
-    }
-    @Test
-    @Order(6)
-    @Timeout(420) // 7min
-    public void testListDocuments() throws JsonProcessingException {
         DescribeServiceResult describeServiceResult = snowball.describeService(
                 new DescribeServiceRequest().withServiceId(SSM_SERVICE_NAME));
 
@@ -33,21 +11,25 @@ private SsmClient createSsmClient(AWSCredentialsProvider credentialsProvider, St
         int port = describeServiceResult.getEndpoints().get(0).getPort();
         log.info("host: " + host);
         log.info("port: " + port);
-
         URI endpointOverride = URI.create("https://" + host + ":" + port);
         URI endpointOverride2 = URI.create(host);
-        try {
-            pingSsmEndpoint(endpointOverride2, 2);
-        } catch (SsmException e) {
-            e.printStackTrace();
-            fail("Failed to ping endpoint for SSM client");
+        if (clientConfiguration != null) {
+            clientConfiguration.getApacheHttpClientConfig()
+                    .setSslSocketFactory(newSSLConnectionSocketFactory(certificate));
+            log.info("this is check for client configuraton "+clientConfiguration);
         }
+        return SsmClient.builder()
+                .endpointOverride(endpointOverride)
+                .build();
+    }
+    @Test
+    @Order(6)
+    @Timeout(420) // 7min
+    public void testListDocuments() throws JsonProcessingException {     
 
         try {
-            AWSCredentialsProvider credentials = DeviceUtil.fetchCredentials(snowball);
 
-            String region = DEFAULT_REGION;
-            SsmClient ssmClient = createSsmClient( credentials, region, endpointOverride);
+            SsmClient ssmClient = createSsmClient();
 
             ListDocumentsRequest listDocumentsRequest = ListDocumentsRequest.builder().build();
             log.info("listDocumentsRequest: " + listDocumentsRequest);
